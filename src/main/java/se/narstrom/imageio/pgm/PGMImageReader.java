@@ -3,6 +3,7 @@ package se.narstrom.imageio.pgm;
 import java.awt.image.BufferedImage;
 import java.awt.image.DataBuffer;
 import java.awt.image.WritableRaster;
+import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
@@ -83,6 +84,8 @@ public class PGMImageReader extends ImageReader {
 		if(!this.buffer.hasRemaining()) {
 			this.buffer.clear();
 			int read = this.stream.read(this.buffer.array(), this.buffer.arrayOffset(), this.buffer.capacity());
+			if(read == -1)
+				throw new EOFException();
 			this.buffer.limit(read);
 		}
 		return this.buffer.get();
