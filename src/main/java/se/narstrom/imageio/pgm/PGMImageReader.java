@@ -1,6 +1,7 @@
 package se.narstrom.imageio.pgm;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.WritableRaster;
 import java.io.IOException;
 import java.util.Iterator;
 
@@ -76,6 +77,26 @@ public class PGMImageReader extends ImageReader {
 		return null;
 	}
 
+	private boolean isSpace(int ch) {
+		return ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t';
+	}
+
+	private int toDigit(int ch) throws IOException {
+		if(ch < '0' || ch > '9')
+			throw new IIOException("invalid format");
+		return ch-'0';
+	}
+
+	private int readAsciiInt(ImageInputStream in) throws IOException {
+		int ret = 0;
+		int ch;
+		while(isSpace(ch = in.read()));
+		do {
+			ret = ret * 10 + toDigit(ch);
+		} while(!isSpace(ch = in.read()));
+		return ret;
+	}
+
 	@Override
 	public BufferedImage read(int imageIndex, ImageReadParam param) throws IOException {
 		if(this.input == null)
@@ -84,61 +105,21 @@ public class PGMImageReader extends ImageReader {
 			throw new IndexOutOfBoundsException();
 		if(img == null) {
 			ImageInputStream in = (ImageInputStream)this.input;
-			String line;
 
-			int state = 0;
-			int width = 0, height = 0;
-			int maxval = 0;
-			int x = 0, y = 0;
-			while((line = in.readLine()) != null) {
-				if(state != 0 && line.charAt(0) == '#') // line comment
-					continue;
-				for(String token : line.split("\\s+")) {
-					switch(state) {
-					case 0:
-						if(!token.equals("P2"))
-							throw new IIOException("Invalid magic number");
-						state = 1;
-						break;
-					case 1:
-						width = Integer.parseInt(token);
-						state = 2;
-						break;
-					case 2:
-						height = Integer.parseInt(token);
-						state = 3;
-						break;
-					case 3:
-						maxval = Integer.parseInt(token);
-						if(maxval < 256)
-							img = new BufferedImage(width, height, BufferedImage.TYPE_BYTE_GRAY);
-						else if(maxval < 65536)
-							img = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
-						else
-							throw new IIOException("Maxval most be less the 65536");
-						state = 4;
-						break;
-					case 4:
-						int sample = Integer.parseInt(token);
-						if(y >= height)
-							break;
-						if(sample > maxval)
-							throw new IIOException("sample larger then maxval");
-						if(maxval < 256)
-							sample = sample*256/(maxval+1);
-						else
-							sample = sample*65536/(maxval+1);
-						img.getRaster().setSample(x, y, 0, sample);
-						if(++x == width) {
-							++y;
-							x = 0;
-						}
-						break;
-					}
+			if(in.read() != 'P' || in.read() != '2' || !isSpace(in.read()))
+				throw new IIOException("invalid magic");
+
+			int width = readAsciiInt(in);
+			int height = readAsciiInt(in);
+			int maxval = readAsciiInt(in);
+			img = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
+			WritableRaster raster = img.getRaster();
+
+			for(int y = 0; y < height; ++y) {
+				for(int x = 0; x < width; ++x) {
+					raster.setSample(x, y, 0, readAsciiInt(in)*65536/(maxval+1));
 				}
 			}
-			if(y < height)
-				throw new IIOException("Unexpected end-of-stream");
 		}
 		return img;
 	}
