@@ -2,9 +2,9 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>se.narstrom.imageio</groupId>
 	<artifactId>pgm-image-reader</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>1.0</version>
 	<name>PGM Image Reader</name>
-	
+
 	<properties>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<maven.compiler.source>1.8</maven.compiler.source>
