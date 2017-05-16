@@ -9,19 +9,15 @@ import javax.imageio.stream.ImageInputStream;
 
 public class PGMImageReaderSpi extends ImageReaderSpi {
 	public PGMImageReaderSpi() {
-		super("Rickard Närström", "0.0.1-SNAPSHOT",				/* vender, version */
-				new String[] { "Portable Graymap" },			/* names */
+		super("Rickard Närström", "1.1",						/* vender, version */
+				new String[] { "Portable Graymap" },			/* format names */
 				new String[] { "pgm" },							/* filename extensions */
 				new String[] { "image/x-portable-graymap" },	/* MIME types */
-				"se.narstrom.imageio.pgm.PGMImageReader",		/* reader class name */
+				PGMImageReader.class.getCanonicalName(),		/* reader class name */
 				new Class<?>[] { ImageInputStream.class },		/* supported input types */
-				null,		/* writer spi class name */
-				false,		/* supports standard stream metadata format */
-				null, null, /* Native stream metadata: name, class name */
-				null, null, /* Extra stream metadata: name, class name */
-				false,		/* supports standard image metadata format */
-				null, null, /* Native image metadata: name, class name */
-				null, null	/* Extra image metadata: name, class name */
+				new String[] { PGMImageWriterSpi.class.getCanonicalName() },		/* writer spi class names */
+				false, null, null, null, null,		/* stream metadata */
+				false, null, null, null, null		/* image metadata */
 				);
 	}
 
