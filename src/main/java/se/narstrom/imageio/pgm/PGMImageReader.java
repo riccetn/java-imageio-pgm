@@ -1,8 +1,10 @@
 package se.narstrom.imageio.pgm;
 
 import java.awt.image.BufferedImage;
+import java.awt.image.DataBuffer;
 import java.awt.image.WritableRaster;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 
 import javax.imageio.IIOException;
@@ -16,6 +18,8 @@ import se.narstrom.util.SingletonIterator;
 
 public class PGMImageReader extends ImageReader {
 	private BufferedImage img = null;
+	private ImageInputStream stream = null;
+	private ByteBuffer buffer = ByteBuffer.allocate(4096);
 
 	protected PGMImageReader(PGMImageReaderSpi originatingProvider) {
 		super(originatingProvider);
@@ -56,9 +60,7 @@ public class PGMImageReader extends ImageReader {
 			throw new IllegalStateException();
 		if(imageIndex != 0)
 			throw new IndexOutOfBoundsException();
-		if(img == null)
-			read(0);
-		return SingletonIterator.of(new ImageTypeSpecifier(img));
+		return SingletonIterator.of(ImageTypeSpecifier.createGrayscale(16, DataBuffer.TYPE_USHORT, false));
 	}
 
 	@Override
@@ -77,6 +79,15 @@ public class PGMImageReader extends ImageReader {
 		return null;
 	}
 
+	private byte read() throws IOException {
+		if(!this.buffer.hasRemaining()) {
+			this.buffer.clear();
+			int read = this.stream.read(this.buffer.array(), this.buffer.arrayOffset(), this.buffer.capacity());
+			this.buffer.limit(read);
+		}
+		return this.buffer.get();
+	}
+
 	private boolean isSpace(int ch) {
 		return ch == ' ' || ch == '\n' || ch == '\r' || ch == '\t';
 	}
@@ -87,13 +98,13 @@ public class PGMImageReader extends ImageReader {
 		return ch-'0';
 	}
 
-	private int readAsciiInt(ImageInputStream in) throws IOException {
+	private int readAsciiInt() throws IOException {
 		int ret = 0;
-		int ch;
-		while(isSpace(ch = in.read()));
+		byte ch;
+		while(isSpace(ch = read()));
 		do {
 			ret = ret * 10 + toDigit(ch);
-		} while(!isSpace(ch = in.read()));
+		} while(!isSpace(ch = read()));
 		return ret;
 	}
 
@@ -104,20 +115,20 @@ public class PGMImageReader extends ImageReader {
 		if(imageIndex != 0)
 			throw new IndexOutOfBoundsException();
 		if(img == null) {
-			ImageInputStream in = (ImageInputStream)this.input;
-
-			if(in.read() != 'P' || in.read() != '2' || !isSpace(in.read()))
+			if(read() != 'P' || read() != '2' || !isSpace(read()))
 				throw new IIOException("invalid magic");
 
-			int width = readAsciiInt(in);
-			int height = readAsciiInt(in);
-			int maxval = readAsciiInt(in);
-			img = new BufferedImage(width, height, BufferedImage.TYPE_USHORT_GRAY);
-			WritableRaster raster = img.getRaster();
+			int width = readAsciiInt();
+			int height = readAsciiInt();
+			int maxval = readAsciiInt();
+			img = ImageReader.getDestination(param, this.getImageTypes(0), width, height);
+			WritableRaster raster = img.getWritableTile(0, 0);
 
+			int[] pixel = new int[1];
 			for(int y = 0; y < height; ++y) {
 				for(int x = 0; x < width; ++x) {
-					raster.setSample(x, y, 0, readAsciiInt(in)*65536/(maxval+1));
+					pixel[0] = readAsciiInt()*65536/(maxval+1);
+					raster.setPixel(x, y, pixel);
 				}
 			}
 		}
@@ -127,6 +138,9 @@ public class PGMImageReader extends ImageReader {
 	@Override
 	public void setInput(Object input, boolean seekForwardOnly, boolean skipMetadata) {
 		super.setInput(input, seekForwardOnly, skipMetadata);
+		this.stream = (ImageInputStream)input;
 		this.img = null;
+		this.buffer.clear();
+		this.buffer.limit(0);
 	}
 }
