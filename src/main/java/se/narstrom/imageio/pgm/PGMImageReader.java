@@ -122,13 +122,11 @@ public class PGMImageReader extends ImageReader {
 			int height = readAsciiInt();
 			int maxval = readAsciiInt();
 			img = ImageReader.getDestination(param, this.getImageTypes(0), width, height);
-			WritableRaster raster = img.getWritableTile(0, 0);
+			WritableRaster raster = img.getRaster();
 
-			int[] pixel = new int[1];
 			for(int y = 0; y < height; ++y) {
 				for(int x = 0; x < width; ++x) {
-					pixel[0] = readAsciiInt()*65536/(maxval+1);
-					raster.setPixel(x, y, pixel);
+					raster.setSample(x, y, 0, readAsciiInt()*65536/(maxval+1));
 				}
 			}
 		}
